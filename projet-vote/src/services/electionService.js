@@ -1,11 +1,10 @@
 import {
-  collection, getDocs, doc, getDoc, writeBatch, serverTimestamp,
+  collection, getDocs, doc, getDoc, setDoc, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { normalizeEmail } from '../utils/email'
 
 // La fiche de l'election : titre et etat ouvert/ferme.
-// Si le document n'existe pas, on prefere fermer la porte qu'ouvrir grand.
 export async function loadElectionConfig() {
   const snap = await getDoc(doc(db, 'config', 'election'))
   return snap.exists() ? snap.data() : { title: 'Election', isOpen: false }
@@ -19,27 +18,33 @@ export async function loadCandidates() {
 }
 
 // Est-ce que la personne connectee a deja vote ?
-export async function hasVoted(email) {
-  const snap = await getDoc(doc(db, 'voters', normalizeEmail(email)))
+// Maintenant on cherche par UID (identifiant propre fourni par Firebase).
+export async function hasVoted(uid) {
+  const snap = await getDoc(doc(db, 'voters', uid))
   return snap.exists()
 }
 
-// Le geste central : participation + bulletin ecrits ENSEMBLE.
-// Soit les deux passent, soit rien ne passe. Pas d'entre-deux possible.
-export async function castVote(email, candidateId) {
-  const batch = writeBatch(db)
+// Le vote en deux temps :
+// 1. la participation (clee par UID, avec l'email comme champ),
+// 2. le bulletin anonyme (aucune information personnelle).
+export async function castVote(user, candidateId) {
+  const cleanEmail = normalizeEmail(user.email)
 
-  // 1. La participation, ID = email de la personne (bloque le double vote)
-  batch.set(doc(db, 'voters', normalizeEmail(email)), {
-    email: normalizeEmail(email),
-    votedAt: serverTimestamp(),
-  })
+  try {
+    await setDoc(doc(db, 'voters', user.uid), {
+      email: cleanEmail,
+      votedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    throw new Error('ETAPE1-participation : ' + (error.code || error.message))
+  }
 
-  // 2. Le bulletin, ID aleatoire, sans aucune information personnelle
-  batch.set(doc(collection(db, 'votes')), {
-    choice: candidateId,
-    votedAt: serverTimestamp(),
-  })
-
-  await batch.commit()
+  try {
+    await setDoc(doc(collection(db, 'votes')), {
+      choice: candidateId,
+      votedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    throw new Error('ETAPE2-bulletin : ' + (error.code || error.message))
+  }
 }
