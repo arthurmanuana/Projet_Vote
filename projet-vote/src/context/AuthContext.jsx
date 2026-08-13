@@ -1,24 +1,22 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../firebase/config'
+import { doc, setDoc } from 'firebase/firestore'
+import { auth, db } from '../firebase/config'
 import { loginWithGoogle, logout } from '../services/authService'
-import { isAdminEmail } from '../services/adminService'
+import { isAdminUid } from '../services/adminService'
 import { isStudentEmail, isStaffEmail, normalizeEmail } from '../utils/email'
 import { STAFF_CAN_LOGIN, STAFF_CAN_VOTE } from '../config'
 
-// Le contexte, c'est la memoire du projet : il sait a tout moment
-// qui est connecte, et ce que cette personne a le droit de faire.
+// La memoire du projet : qui est connecte, et avec quels droits.
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null)           // le compte Google brut
-  const [profile, setProfile] = useState(null)     // ce qu'on en deduit (etudiant ? staff ? admin ?)
-  const [loading, setLoading] = useState(true)     // pendant que Firebase restaure la session
-  const [rejection, setRejection] = useState(null) // l'email refuse, pour pouvoir expliquer pourquoi
+  const [user, setUser] = useState(null)
+  const [profile, setProfile] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [rejection, setRejection] = useState(null)
 
   useEffect(() => {
-    // Firebase nous rappelle a chaque changement : connexion,
-    // deconnexion, rechargement de page...
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setUser(null)
@@ -30,14 +28,11 @@ export function AuthProvider({ children }) {
       const email = normalizeEmail(firebaseUser.email)
       const student = isStudentEmail(email)
       const staff = isStaffEmail(email)
-      const admin = await isAdminEmail(email)
+      const admin = await isAdminUid(firebaseUser.uid)
 
-      // Question 1 : cette personne a-t-elle le droit d'entrer ?
       const canEnter = student || (staff && STAFF_CAN_LOGIN) || admin
 
       if (!canEnter) {
-        // On memorise le refus pour que la page "non autorise"
-        // puisse expliquer pourquoi, puis on ferme la porte proprement.
         setRejection({ email })
         setUser(null)
         setProfile(null)
@@ -46,7 +41,14 @@ export function AuthProvider({ children }) {
         return
       }
 
-      // Questions 2 et 3 : voter ? administrer ?
+      // Annuaire : qui s'est connecte au moins une fois.
+      // Servira au panneau pour promouvoir un admin par email.
+      try {
+        await setDoc(doc(db, 'profiles', firebaseUser.uid), { email }, { merge: true })
+      } catch (error) {
+        console.error('Profil non enregistre :', error)
+      }
+
       const canVote = student || (staff && STAFF_CAN_VOTE)
 
       setUser(firebaseUser)
@@ -70,7 +72,6 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-// Petit hook de confort, pour ne jamais manipuler le contexte a la main.
 export function useAuth() {
   return useContext(AuthContext)
 }

@@ -14,7 +14,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 
 export const auth = getAuth(app)
+
 export const googleProvider = new GoogleAuthProvider()
+// Toujours proposer l'ecran de choix du compte : indispensable quand
+// on jongle entre plusieurs comptes sur la meme machine.
+googleProvider.setCustomParameters({ prompt: 'select_account' })
+
 export const db = getFirestore(app)
 
 console.log('Firebase initialise :', app.name)
