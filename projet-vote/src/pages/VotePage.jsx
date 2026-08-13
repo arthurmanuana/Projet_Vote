@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import { CheckCircle2, Lock, LogOut, ShieldCheck, Vote } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
-  loadCandidates, loadElectionConfig, hasVoted, castVote,
+  hasVoted, castVote, subscribeElection, subscribeCandidates,
 } from '../services/electionService'
 import CandidateCard from '../components/CandidateCard'
 import LoadingScreen from '../components/LoadingScreen'
@@ -12,6 +12,7 @@ import { APP_NAME } from '../config'
 
 // Page de vote (logique definitive, habillage provisoire).
 // Trois etats possibles : deja vote, vote clos, ou choix des candidats.
+// Tout est en temps reel : plus jamais besoin de F5.
 export default function VotePage() {
   const { user, profile, logout } = useAuth()
   const navigate = useNavigate()
@@ -23,26 +24,25 @@ export default function VotePage() {
   const [submitting, setSubmitting] = useState(false)
   const [loading, setLoading] = useState(true)
 
-  // On charge tout en une fois : config, candidats, et "ai-je vote ?"
+  // Verification "ai-je deja vote", puis abonnements temps reel :
+  // quand l'admin ferme/rouvre le vote ou modifie les candidats,
+  // cette page bascule toute seule.
   useEffect(() => {
-    const loadAll = async () => {
-      try {
-        const [cfg, cands, voted] = await Promise.all([
-          loadElectionConfig(),
-          loadCandidates(),
-          hasVoted(user.uid),
-        ])
-        setElection(cfg)
-        setCandidates(cands)
-        setAlreadyVoted(voted)
-      } catch (error) {
-        console.error('Chargement du vote impossible :', error)
-        toast.error('Impossible de charger le vote. Verifie ta connexion.')
-      } finally {
-        setLoading(false)
-      }
-    }
-    if (user) loadAll()
+    if (!user) return undefined
+
+    hasVoted(user.uid)
+      .then(setAlreadyVoted)
+      .catch((error) => {
+        console.error('Verification deja-vote impossible :', error)
+        toast.error('Verification du vote impossible.')
+      })
+      .finally(() => setLoading(false))
+
+    const unsubscriptions = [
+      subscribeElection(setElection),
+      subscribeCandidates(setCandidates),
+    ]
+    return () => unsubscriptions.forEach((un) => un())
   }, [user])
 
   const handleConfirm = async () => {
@@ -65,7 +65,7 @@ export default function VotePage() {
     navigate('/')
   }
 
-  if (loading) return <LoadingScreen />
+  if (loading || !election) return <LoadingScreen />
 
   return (
     <div className="min-h-screen bg-slate-950 p-6">

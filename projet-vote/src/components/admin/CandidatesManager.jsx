@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Pencil, Save, Trash2, X } from 'lucide-react'
+import { Pencil, Save, Trash2, Upload, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { saveCandidate, deleteCandidate } from '../../services/adminService'
+import { fileToDataUrl } from '../../utils/images'
 
 const inputCls = 'bg-slate-800 text-slate-200 text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-blue-500 placeholder:text-slate-500'
 
@@ -14,12 +15,30 @@ const EMPTY = {
   photoUrl: '/profil-homme.jpg',
 }
 
-// Ajouter, modifier, retirer des candidats : plus besoin de la console.
 export default function CandidatesManager({ candidates, onChange }) {
   const [form, setForm] = useState(EMPTY)
   const [editingId, setEditingId] = useState(null)
 
   const set = (key) => (e) => setForm({ ...form, [key]: e.target.value })
+
+  // La photo est compressee dans le navigateur, puis rangee dans la
+  // fiche du candidat. Gratuit, sans Storage, sans facturation.
+  const handlePhoto = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const dataUrl = await fileToDataUrl(file)
+      if (dataUrl.length > 900000) {
+        toast.error('Image trop lourde meme compressee. Choisis une photo plus simple.')
+        return
+      }
+      setForm({ ...form, photoUrl: dataUrl })
+      toast.success('Photo prete. Pense a enregistrer le candidat.')
+    } catch (error) {
+      console.error('Photo impossible a compresser :', error)
+      toast.error('Lecture de la photo impossible.')
+    }
+  }
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.listName.trim()) {
@@ -101,7 +120,14 @@ export default function CandidatesManager({ candidates, onChange }) {
         <input value={form.level} onChange={set('level')} placeholder="Niveau (ex : X2)" className={inputCls} />
         <input value={form.listName} onChange={set('listName')} placeholder="Nom de la liste *" className={inputCls} />
         <input value={form.listMeaning} onChange={set('listMeaning')} placeholder="Signification de la liste" className={inputCls} />
-        <input value={form.photoUrl} onChange={set('photoUrl')} placeholder="Photo (ex : /profil-homme.jpg)" className={inputCls} />
+        <div className="flex items-center gap-2">
+          <input value={form.photoUrl} onChange={set('photoUrl')} placeholder="Photo (ex : /profil-homme.jpg)" className={inputCls} />
+          <label className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 transition cursor-pointer whitespace-nowrap">
+            <Upload className="w-4 h-4" />
+            Photo
+            <input type="file" accept="image/*" onChange={handlePhoto} className="hidden" />
+          </label>
+        </div>
       </div>
       <div className="flex gap-2 mt-4">
         <button
