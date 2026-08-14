@@ -1,1 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+
+/* Les couleurs du projet, branchees sur Tailwind.
+   Rouge et or du logo, declines en deux themes. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-gold: var(--gold);
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Theme sombre : la nuit, le neon, le rouge qui chauffe */
+:root {
+  color-scheme: dark;
+  --bg: #0c0806;
+  --surface: #17100a;
+  --card: #1f150c;
+  --ink: #f7efe2;
+  --muted: #a89a86;
+  --line: rgba(224, 168, 60, 0.16);
+  --brand: #c22334;
+  --gold: #e0a83c;
+}
+
+/* Theme clair : creme institutionnel, or fonce, rouge profond.
+   Le card est volontairement creme, pas blanc, pour ne pas eblouir. */
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #f6efe3;
+  --surface: #faf6ec;
+  --card: #efe6d2;
+  --ink: #241505;
+  --muted: #7d6f5b;
+  --line: rgba(146, 104, 20, 0.22);
+  --brand: #a81c2c;
+  --gold: #a97b18;
+}
+
+body {
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--gold);
+  color: #1a1005;
+}
