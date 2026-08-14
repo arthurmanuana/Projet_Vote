@@ -172,7 +172,7 @@ export default function AdminPage() {
             className="flex items-center gap-2 bg-red-500/20 text-red-300 hover:bg-red-500/30 text-sm rounded-lg px-4 py-2 transition"
           >
             <RotateCcw className="w-4 h-4" />
-            Table rase
+            Taboula rasa
           </button>
           <span className="text-slate-500 text-sm ml-auto">{election?.title}</span>
         </div>
