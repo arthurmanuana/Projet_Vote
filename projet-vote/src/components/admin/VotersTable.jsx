@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { Download, Search } from 'lucide-react'
+import { Download, Search, Users } from 'lucide-react'
 import { downloadCSV } from '../../utils/csv'
 import { formatWhen } from '../../utils/dates'
 
-// Qui a vote, quand, avec recherche et export CSV.
+// La table des votants, facon "Recent Activities" : en-tete avec
+// recherche et export CSV, lignes fines, initiales en medaillon.
+// On ne montre que QUI a vote : le secret de l'urne reste intact.
 export default function VotersTable({ voters }) {
   const [query, setQuery] = useState('')
 
@@ -24,54 +26,62 @@ export default function VotersTable({ voters }) {
   }
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-      <div className="flex items-center justify-between gap-4 mb-4">
-        <p className="text-white font-medium">Liste des votants ({filtered.length})</p>
-        <div className="flex items-center gap-2">
-          <div className="relative">
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Rechercher un email..."
-              className="bg-slate-800 text-slate-200 text-sm rounded-lg pl-9 pr-3 py-2 outline-none focus:ring-1 focus:ring-blue-500"
-            />
-          </div>
-          <button
-            onClick={exportCSV}
-            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm rounded-lg px-3 py-2 transition"
-          >
-            <Download className="w-4 h-4" />
-            CSV
-          </button>
+    <div className="rounded-lg border border-line bg-surface">
+      <div className="flex items-center gap-3 p-4 border-b border-line">
+        <span className="w-8 h-8 rounded-md bg-card border border-line text-gold flex items-center justify-center">
+          <Users className="w-4 h-4" />
+        </span>
+        <div className="flex-1">
+          <p className="text-sm font-bold text-ink">Votants</p>
+          <p className="text-[11px] text-muted">{filtered.length} participation(s)</p>
+        </div>
+        <div className="relative hidden sm:block">
+          <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher un email..."
+            className="bg-card border border-line text-ink text-xs rounded-md pl-8 pr-3 h-9 w-48 outline-none focus:border-gold/50 placeholder:text-muted"
+          />
+        </div>
+        <button
+          onClick={exportCSV}
+          className="h-9 px-3 rounded-md bg-gradient-to-r from-brand to-gold text-white text-xs font-bold flex items-center gap-1.5 active:scale-[0.98] transition"
+        >
+          <Download className="w-3.5 h-3.5" />
+          CSV
+        </button>
+      </div>
+
+      {/* Recherche en plein écran sur mobile */}
+      <div className="p-3 border-b border-line sm:hidden">
+        <div className="relative">
+          <Search className="w-3.5 h-3.5 text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Rechercher un email..."
+            className="w-full bg-card border border-line text-ink text-xs rounded-md pl-8 pr-3 h-9 outline-none focus:border-gold/50 placeholder:text-muted"
+          />
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="text-slate-500 border-b border-slate-800">
-              <th className="text-left py-2 pr-4 font-medium">Email</th>
-              <th className="text-left py-2 font-medium">Date du vote</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td colSpan={2} className="text-slate-500 py-4 text-center">
-                  Aucun votant pour le moment.
-                </td>
-              </tr>
-            )}
-            {filtered.map((v) => (
-              <tr key={v.uid} className="border-b border-slate-800/60">
-                <td className="py-2 pr-4 text-slate-200">{v.email}</td>
-                <td className="py-2 text-slate-400">{formatWhen(v.votedAt)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ul className="divide-y divide-line">
+        {filtered.length === 0 && (
+          <li className="p-6 text-center text-xs text-muted">Aucun votant pour le moment.</li>
+        )}
+        {filtered.map((v) => (
+          <li key={v.uid} className="flex items-center justify-between px-4 py-2.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-8 h-8 rounded-md bg-card border border-line text-gold flex items-center justify-center text-[10px] font-bold uppercase shrink-0">
+                {(v.email || '?').slice(0, 2)}
+              </span>
+              <p className="text-xs text-ink truncate">{v.email}</p>
+            </div>
+            <p className="text-[11px] text-muted shrink-0 ml-3">{formatWhen(v.votedAt)}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

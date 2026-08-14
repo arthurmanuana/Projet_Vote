@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
-import { LayoutDashboard, LogOut, Power, RotateCcw, Trophy, Vote } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import {
   loadCandidates, loadElectionConfig, subscribeElection, subscribeCandidates,
@@ -11,20 +10,34 @@ import {
   subscribeVoters, subscribeVotes, subscribeAdmins,
 } from '../services/adminService'
 import LoadingScreen from '../components/LoadingScreen'
-import StatCard from '../components/admin/StatCard'
+import AdminLayout from '../components/admin/AdminLayout'
+import KpiRow from '../components/admin/KpiRow'
+import HourlyChart from '../components/admin/HourlyChart'
+import RecentActivity from '../components/admin/RecentActivity'
+import WinnerBanner from '../components/admin/WinnerBanner'
 import CandidateResultBar from '../components/admin/CandidateResultBar'
-import ChartsSection from '../components/admin/ChartsSection'
+import SharePie from '../components/admin/SharePie'
 import VotersTable from '../components/admin/VotersTable'
-import AdminsManager from '../components/admin/AdminsManager'
 import CandidatesManager from '../components/admin/CandidatesManager'
+import AdminsManager from '../components/admin/AdminsManager'
 import { hourLabel } from '../utils/dates'
 
-// Le vrai panneau admin. Fil de fer aujourd'hui, tes styles demain.
-// Tout est en temps reel : les votes des etudiants montent en direct.
+const TITLES = {
+  dashboard: 'Tableau de bord',
+  resultats: 'Resultats',
+  votants: 'Votants',
+  candidats: 'Candidats',
+  admins: 'Administrateurs',
+}
+
+// Le panneau admin, facon dashboard : sidebar de navigation,
+// vues qui s'enchainent, donnees en temps reel partagees.
+// Toute la logique metier reste dans les services et les regles.
 export default function AdminPage() {
   const { user, profile, logout } = useAuth()
   const navigate = useNavigate()
 
+  const [section, setSection] = useState('dashboard')
   const [election, setElection] = useState(null)
   const [candidates, setCandidates] = useState([])
   const [voters, setVoters] = useState([])
@@ -32,7 +45,7 @@ export default function AdminPage() {
   const [admins, setAdmins] = useState([])
   const [loading, setLoading] = useState(true)
 
-  // Premier chargement complet (sert aussi apres certaines actions).
+  // Premier chargement complet.
   const refresh = useCallback(async () => {
     try {
       const [cfg, cands, vot, bal, adm] = await Promise.all([
@@ -57,8 +70,7 @@ export default function AdminPage() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  // Temps reel : le panneau se met a jour tout seul quand un etudiant
-  // vote ou qu'un admin modifie candidats, etat du vote ou admins.
+  // Temps reel : tout se met a jour tout seul, partout.
   useEffect(() => {
     const unsubscriptions = [
       subscribeElection(setElection),
@@ -70,6 +82,7 @@ export default function AdminPage() {
     return () => unsubscriptions.forEach((un) => un())
   }, [])
 
+  // ---- Depouillement et donnees derivees ----
   const counts = useMemo(() => tallyVotes(votes, candidates), [votes, candidates])
   const totalVotes = votes.length
 
@@ -80,11 +93,13 @@ export default function AdminPage() {
     return sorted[0]
   }, [candidates, counts, totalVotes])
 
-  const barData = useMemo(
-    () => candidates.map((c) => ({ name: c.listName || c.name, votes: counts[c.id] })),
+  const pieData = useMemo(
+    () => candidates
+      .map((c) => ({ name: c.listName || c.name, value: counts[c.id] }))
+      .filter((d) => d.value > 0),
     [candidates, counts]
   )
-  const pieData = useMemo(() => barData.filter((d) => d.votes > 0), [barData])
+
   const hourData = useMemo(() => {
     const byHour = {}
     votes.forEach((v) => {
@@ -101,6 +116,7 @@ export default function AdminPage() {
     ? `${Math.min(100, Math.round((voters.length / election.expectedVoters) * 100))}%`
     : '—'
 
+  // ---- Actions globales ----
   const toggleOpen = async () => {
     const next = !election?.isOpen
     try {
@@ -134,84 +150,55 @@ export default function AdminPage() {
   if (loading) return <LoadingScreen />
 
   return (
-    <div className="min-h-screen bg-slate-950 p-6">
-      <header className="max-w-5xl mx-auto flex items-center justify-between mb-8">
-        <div className="flex items-center gap-2 text-white font-semibold">
-          <LayoutDashboard className="w-5 h-5 text-emerald-500" />
-          Panneau administrateur
+    <AdminLayout
+      current={section}
+      title={TITLES[section]}
+      onNavigate={setSection}
+      election={election}
+      onToggleOpen={toggleOpen}
+      onReset={handleReset}
+      onLogout={handleLogout}
+    >
+      {section === 'dashboard' && (
+        <div className="space-y-4">
+          <KpiRow
+            voters={voters.length}
+            votes={totalVotes}
+            participation={participation}
+            isOpen={election?.isOpen}
+          />
+          <div className="grid gap-4 lg:grid-cols-2">
+            <HourlyChart data={hourData} />
+            <RecentActivity voters={voters} />
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          {profile.canVote && (
-            <Link to="/vote" className="flex items-center gap-2 text-blue-400 hover:text-blue-300 transition text-sm">
-              <Vote className="w-4 h-4" />
-              Voir le vote
-            </Link>
-          )}
-          <button onClick={handleLogout} className="flex items-center gap-2 text-slate-400 hover:text-white transition text-sm">
-            <LogOut className="w-4 h-4" />
-            Se deconnecter
-          </button>
-        </div>
-      </header>
+      )}
 
-      <main className="max-w-5xl mx-auto space-y-8">
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={toggleOpen}
-            className={`flex items-center gap-2 text-sm rounded-lg px-4 py-2 transition ${
-              election?.isOpen
-                ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30'
-                : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'
-            }`}
-          >
-            <Power className="w-4 h-4" />
-            {election?.isOpen ? 'Fermer le vote' : 'Rouvrir le vote'}
-          </button>
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-2 bg-red-500/20 text-red-300 hover:bg-red-500/30 text-sm rounded-lg px-4 py-2 transition"
-          >
-            <RotateCcw className="w-4 h-4" />
-            Taboula rasa
-          </button>
-          <span className="text-slate-500 text-sm ml-auto">{election?.title}</span>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Votants" value={voters.length} />
-          <StatCard label="Bulletins" value={totalVotes} />
-          <StatCard label="Participation" value={participation} />
-          <StatCard label="Etat du vote" value={election?.isOpen ? 'Ouvert' : 'Clos'} />
-        </div>
-
-        <section className="space-y-3">
-          {winner && (
-            <div className="bg-emerald-500/10 border border-emerald-500/40 rounded-2xl p-4 flex items-center gap-3">
-              <Trophy className="w-5 h-5 text-emerald-400" />
-              <p className="text-emerald-300 text-sm">
-                Gagnant actuel : {winner.name} (Liste {winner.listName}) — {counts[winner.id]} voix
-              </p>
+      {section === 'resultats' && (
+        <div className="space-y-4">
+          {winner && <WinnerBanner candidate={winner} votes={counts[winner.id]} />}
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="space-y-2">
+              {candidates.map((c) => (
+                <CandidateResultBar
+                  key={c.id}
+                  candidate={c}
+                  votes={counts[c.id]}
+                  totalVotes={totalVotes}
+                  isWinner={winner?.id === c.id}
+                />
+              ))}
             </div>
-          )}
-          {candidates.map((c) => (
-            <CandidateResultBar
-              key={c.id}
-              candidate={c}
-              votes={counts[c.id]}
-              totalVotes={totalVotes}
-              isWinner={winner?.id === c.id}
-            />
-          ))}
-        </section>
+            <SharePie data={pieData} />
+          </div>
+        </div>
+      )}
 
-        <ChartsSection barData={barData} pieData={pieData} hourData={hourData} />
+      {section === 'votants' && <VotersTable voters={voters} />}
 
-        <VotersTable voters={voters} />
+      {section === 'candidats' && <CandidatesManager candidates={candidates} onChange={refresh} />}
 
-        <CandidatesManager candidates={candidates} onChange={refresh} />
-
-        <AdminsManager admins={admins} myEmail={profile.email} onChange={refresh} />
-      </main>
-    </div>
+      {section === 'admins' && <AdminsManager admins={admins} myEmail={profile.email} onChange={refresh} />}
+    </AdminLayout>
   )
 }
