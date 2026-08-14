@@ -1,32 +1,43 @@
-// Carte candidat provisoire (fil de fer).
-// Le design definitif viendra avec tes styles, la logique restera.
+import { Check } from 'lucide-react'
+
+// Le candidat se presente en ligne horizontale compacte, comme sur
+// le croquis : photo carree a rayons serres, infos, et case de
+// selection qui s'allume en or quand on la choisit.
 export default function CandidateCard({ candidate, selected, onSelect }) {
   return (
     <button
       onClick={onSelect}
-      className={`text-left bg-slate-900 border rounded-2xl p-6 transition ${
+      aria-pressed={selected}
+      className={`w-full flex items-center gap-3 p-3 rounded-md border text-left transition active:scale-[0.99] ${
         selected
-          ? 'border-blue-500 ring-2 ring-blue-500/40'
-          : 'border-slate-800 hover:border-slate-600'
+          ? 'border-gold bg-gold/10 shadow-[0_0_20px_rgba(224,168,60,0.15)]'
+          : 'border-line bg-surface hover:border-gold/40'
       }`}
     >
       <img
         src={candidate.photoUrl}
         alt={candidate.name}
-        className="w-20 h-20 rounded-full object-cover mx-auto mb-4"
+        className="w-14 h-14 rounded-md object-cover border border-line shrink-0"
       />
-      <p className="text-white font-semibold text-center mb-1">{candidate.name}</p>
-      <p className="text-slate-400 text-sm text-center mb-3">
-        {candidate.course} — {candidate.level}
-      </p>
-      <p className="text-center text-sm">
-        <span className="bg-slate-800 text-slate-200 rounded-full px-3 py-1">
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-ink truncate">{candidate.name}</p>
+        <p className="text-[11px] text-muted truncate">
+          {candidate.course} — {candidate.level}
+        </p>
+        <p className="text-[11px] text-gold font-semibold mt-1 truncate">
           Liste {candidate.listName}
-        </span>
-      </p>
-      {candidate.listMeaning && (
-        <p className="text-slate-500 text-xs text-center mt-2">{candidate.listMeaning}</p>
-      )}
+          {candidate.listMeaning ? ` · ${candidate.listMeaning}` : ''}
+        </p>
+      </div>
+      <div
+        className={`w-6 h-6 rounded-md border flex items-center justify-center shrink-0 transition ${
+          selected
+            ? 'bg-gold border-gold text-[#1a1005]'
+            : 'border-line text-transparent'
+        }`}
+      >
+        <Check className="w-4 h-4" />
+      </div>
     </button>
   )
 }
