@@ -1,11 +1,12 @@
 import { Loader2 } from 'lucide-react'
 
-// Ecran d'attente unique, pour ne pas avoir de page qui "clignote"
-// pendant que Firebase restaure la session.
+// L'ecran d'attente unique, dans la charte : fond du theme,
+// spinner dore, petit intitule discret.
 export default function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-      <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+    <div className="min-h-screen bg-bg flex flex-col items-center justify-center gap-3">
+      <Loader2 className="w-8 h-8 text-gold animate-spin" />
+      <p className="text-[11px] text-muted tracking-widest uppercase">Chargement</p>
     </div>
   )
 }
