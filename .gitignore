@@ -5,6 +5,7 @@ node_modules/
 .env
 .env.local
 .env.production
+.env.*
 
 # Build
 dist/
@@ -23,3 +24,6 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+#Image
+google.psd
